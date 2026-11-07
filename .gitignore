@@ -1,0 +1,20 @@
+
+# Private credentials
+.env
+
+# Generated data
+data/
+*.parquet
+
+# Python temporary files
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Mac system files
+.DS_Store
+
+# Logs
+*.log
+logs/

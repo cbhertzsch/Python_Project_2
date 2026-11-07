@@ -1,0 +1,79 @@
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: project2-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5433:5432"
+    volumes:
+      - project2-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  spark-master:
+    image: jupyter/pyspark-notebook:spark-3.5.0
+    container_name: project2-spark-master
+    hostname: spark-master
+    user: root
+    ports:
+      - "8080:8080"
+      - "7077:7077"
+    volumes:
+      - ./data:/data
+      - ./scripts:/apps
+    command: >
+      bash -c "
+      /usr/local/spark/sbin/start-master.sh &&
+      tail -f /dev/null
+      "
+
+  spark-worker-1:
+    image: jupyter/pyspark-notebook:spark-3.5.0
+    container_name: project2-spark-worker-1
+    hostname: spark-worker-1
+    user: root
+    depends_on:
+      - spark-master
+    ports:
+      - "8081:8081"
+    environment:
+      SPARK_WORKER_CORES: 2
+      SPARK_WORKER_MEMORY: 2g
+      SPARK_WORKER_WEBUI_PORT: 8081
+    volumes:
+      - ./data:/data
+      - ./scripts:/apps
+    command: >
+      bash -c "
+      /usr/local/spark/sbin/start-worker.sh spark://spark-master:7077 &&
+      tail -f /dev/null
+      "
+
+  airflow:
+    build:
+      context: .
+      dockerfile: Dockerfile.airflow
+    image: project2-airflow-custom:latest
+    container_name: project2-airflow
+    ports:
+      - "8088:8080"
+    environment:
+      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+      AIRFLOW__CORE__EXECUTOR: SequentialExecutor
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./scripts:/opt/airflow/scripts
+      - ./data:/data
+      - project2-airflow-data:/opt/airflow
+    command: standalone
+
+volumes:
+  project2-postgres-data:
+  project2-airflow-data:
