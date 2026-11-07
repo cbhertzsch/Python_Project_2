@@ -323,5 +323,50 @@ print("Raw records:", orders.count())
 print("Cleaned records:", orders_clean.count())
 print("Records removed:", orders.count() - orders_clean.count())
 
+# Save a data-quality summary to a text file
+from pathlib import Path
+
+log_folder = Path("/data/logs")
+log_folder.mkdir(parents=True, exist_ok=True)
+
+with open(log_folder / "cleansing_summary.txt", "w") as file:
+    file.write("PROJECT 2 DATA CLEANSING SUMMARY\n")
+
+    for name, raw, cleaned in [
+        ("Customers", customers, customers_clean),
+        ("Products", products, products_clean),
+        ("Orders", orders, orders_clean)
+    ]:
+        raw_count = raw.count()
+        clean_count = cleaned.count()
+
+        file.write(f"\n{name}\n")
+        file.write(f"Raw records: {raw_count}\n")
+        file.write(f"Cleaned records: {clean_count}\n")
+        file.write(f"Records removed: {raw_count - clean_count}\n")
+
+
+# Add the reasons records were removed
+with open(log_folder / "cleansing_summary.txt", "a") as file:
+    file.write("\nRECORD REMOVAL REASONS\n")
+
+    file.write("\nCustomers:\n")
+    file.write(f"Duplicate customer IDs: {customers.count() - customers.dropDuplicates(['customer_id']).count()}\n")
+    file.write(f"Missing email addresses: {missing_emails.count()}\n")
+
+    file.write("\nProducts:\n")
+    file.write(f"Duplicate product IDs: {products.count() - products.dropDuplicates(['product_id']).count()}\n")
+    file.write(f"Missing product names: {missing_products.count()}\n")
+    file.write(f"Negative product prices: {invalid_prices.count()}\n")
+
+    file.write("\nOrders:\n")
+    file.write(f"Duplicate order IDs: {orders.count() - orders.dropDuplicates(['order_id']).count()}\n")
+    file.write(f"Missing order amounts: {missing_orders.count()}\n")
+    file.write(f"Invalid order amounts: {invalid_orders.count()}\n")
+    file.write(f"Missing customer references: {orphan_orders.count()}\n")
+    file.write(f"Missing product references: {orphan_products.count()}\n")
+
+print("Data-quality summary saved to /data/logs/cleansing_summary.txt")
+
 # Stop Spark
 spark.stop()
