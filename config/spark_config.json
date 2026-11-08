@@ -1,0 +1,8 @@
+
+{
+  "app_name": "Project2_Spark",
+  "master": "spark://spark-master:7077",
+  "executor_memory": "1g",
+  "max_cores": 1,
+  "log_level": "INFO"
+}
