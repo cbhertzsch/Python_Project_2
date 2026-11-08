@@ -1,6 +1,9 @@
 
 import os
 import psycopg2
+from datetime import datetime
+
+load_start_time = datetime.now()
 
 # Connect to the PostgreSQL database
 connection = psycopg2.connect(
@@ -25,6 +28,22 @@ cursor.execute("""
 
 table_count = cursor.fetchone()[0]
 print("PostgreSQL tables found:", table_count)
+
+# Clear old records before loading the latest cleaned data
+# Remove dependent tables first to avoid foreign key errors
+refresh_tables = [
+    "orders",
+    "customer_analytics",
+    "product_analytics",
+    "customers",
+    "products"
+]
+
+for table in refresh_tables:
+    cursor.execute(f"DELETE FROM {table}")
+
+connection.commit()
+print("Old customer, product, and order records cleared")
 
 # Read cleaned customer data
 import pandas as pd
@@ -52,7 +71,16 @@ insert_customers = """
         phone, city, registration_date, customer_type
     )
     VALUES %s
-    ON CONFLICT (customer_id) DO NOTHING
+    
+    ON CONFLICT (customer_id) DO UPDATE SET
+    first_name = EXCLUDED.first_name,
+    last_name = EXCLUDED.last_name,
+    email = EXCLUDED.email,
+    phone = EXCLUDED.phone,
+    city = EXCLUDED.city,
+    registration_date = EXCLUDED.registration_date,
+    customer_type = EXCLUDED.customer_type
+
 """
 
 execute_values(
@@ -90,7 +118,14 @@ insert_products = """
         unit_price, stock_quantity, is_active
     )
     VALUES %s
-    ON CONFLICT (product_id) DO NOTHING
+    ON CONFLICT (product_id) DO UPDATE SET
+    product_name = EXCLUDED.product_name,
+    category = EXCLUDED.category,
+    brand = EXCLUDED.brand,
+    unit_price = EXCLUDED.unit_price,
+    stock_quantity = EXCLUDED.stock_quantity,
+    is_active = EXCLUDED.is_active
+
 """
 
 execute_values(
@@ -130,7 +165,16 @@ insert_orders = """
         total_amount, discount_amount, shipping_cost
     )
     VALUES %s
-    ON CONFLICT (order_id) DO NOTHING
+    ON CONFLICT (order_id) DO UPDATE SET
+    customer_id = EXCLUDED.customer_id,
+    product_id = EXCLUDED.product_id,
+    order_date = EXCLUDED.order_date,
+    order_status = EXCLUDED.order_status,
+    payment_method = EXCLUDED.payment_method,
+    total_amount = EXCLUDED.total_amount,
+    discount_amount = EXCLUDED.discount_amount,
+    shipping_cost = EXCLUDED.shipping_cost
+
 """
 
 execute_values(
@@ -259,7 +303,7 @@ cursor.execute("""
     VALUES (%s, %s, %s, %s, %s)
 """, (
     "etl_spark_pipeline",
-    datetime.now(),
+    load_start_time,
     datetime.now(),
     "SUCCESS",
     len(customers) + len(products) + len(orders)

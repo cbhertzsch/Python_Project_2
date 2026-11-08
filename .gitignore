@@ -18,3 +18,7 @@ venv/
 # Logs
 *.log
 logs/
+backups/
+
+# Temporary Python backup scripts
+scripts/*_backup.py

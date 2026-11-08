@@ -1,4 +1,9 @@
 
+
+import sys
+
+# Choose which dataset Airflow should clean
+dataset = sys.argv[1] if len(sys.argv) > 1 else "all"
 from pyspark.sql import SparkSession
 
 # Start Spark
@@ -92,6 +97,12 @@ customers_clean.write.mode("overwrite").parquet(
 
 print("Cleaned customer data saved as Parquet")
 
+# Stop after customer cleansing if only customers were requested
+if dataset == "customers":
+    print("Customer cleansing completed")
+    spark.stop()
+    sys.exit(0)
+
 # Read the raw product data
 products = spark.read.csv(
     "/data/raw/products.csv",
@@ -166,6 +177,12 @@ products_clean.write.mode("overwrite").parquet(
 )
 
 print("Cleaned product data saved as Parquet")
+
+# Stop after product cleansing if only products were requested
+if dataset == "products":
+    print("Product cleansing completed")
+    spark.stop()
+    sys.exit(0)
 
 # Read the raw order data
 orders = spark.read.csv(

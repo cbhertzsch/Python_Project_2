@@ -40,11 +40,33 @@ with DAG(
         """
     )
 
-    # Clean the data using PySpark
-    spark_cleanse = BashOperator(
-        task_id="spark_cleanse",
+    
+    # Clean customers using PySpark
+    spark_cleanse_customers = BashOperator(
+        task_id="spark_cleanse_customers",
         bash_command=spark_command +
-        " /opt/airflow/scripts/spark_cleanse.py"
+        " /opt/airflow/scripts/spark_cleanse_customers.py customers"
+    )
+
+    # Clean products using PySpark
+    spark_cleanse_products = BashOperator(
+        task_id="spark_cleanse_products",
+        bash_command=spark_command +
+        " /opt/airflow/scripts/spark_cleanse_products.py products"
+    )
+
+    # Clean orders using the cleaned customer and product data
+    spark_cleanse_orders = BashOperator(
+        task_id="spark_cleanse_orders",
+        bash_command=spark_command +
+        " /opt/airflow/scripts/spark_cleanse_orders.py"
+    )
+    
+    # Save the data-quality cleansing summary
+    cleansing_log = BashOperator(
+        task_id="cleansing_log",
+        bash_command=spark_command +
+        " /opt/airflow/scripts/cleansing_log.py"
     )
 
     # Calculate analytics using PySpark
@@ -72,6 +94,15 @@ with DAG(
         task_id="completion"
     )
 
-    generate_data >> file_validation >> spark_cleanse >> spark_analytics
-    spark_analytics >> load_to_postgres >> data_validation >> completion
+    
+    # Run the tasks in the correct order
+    generate_data >> file_validation
+    file_validation >> spark_cleanse_customers
+    spark_cleanse_customers >> spark_cleanse_products
+    spark_cleanse_products >> spark_cleanse_orders
+    spark_cleanse_orders >> cleansing_log
+    cleansing_log >> spark_analytics
+    spark_analytics >> load_to_postgres
+    load_to_postgres >> data_validation >> completion
+
 
